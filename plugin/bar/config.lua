@@ -69,6 +69,12 @@ M.options = {
     field_icon = wez.nerdfonts.indent_line,
   },
   modules = {
+    keytbl = {
+      enabled = true,
+      icon = wez.nerdfonts.cod_settings_gear,
+      none_color = 7,
+      color = 4
+    },
     tabs = {
       active_tab_fg = 4,
       inactive_tab_fg = 6,

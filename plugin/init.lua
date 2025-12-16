@@ -18,8 +18,8 @@ end
 ---returns the name of the package, used when requiring modules
 ---@return string
 local function get_require_path()
-  local path = "httpssCssZssZsgithubsDscomsZsadriankarlensZsbarsDswezterm"
-  local path_trailing_slash = "httpssCssZssZsgithubsDscomsZsadriankarlensZsbarsDsweztermsZs"
+  local path = "httpssCssZssZsgithubsDscomsZszczsyqxlsZsbarsDswezterm"
+  local path_trailing_slash = "httpssCssZssZsgithubsDscomsZszczsyqxlsZsbarsDsweztermsZs"
   return directory_exists(path_trailing_slash) and path_trailing_slash or path
 end
 
@@ -126,6 +126,22 @@ wez.on("update-status", function(window, pane)
   }
 
   table.insert(left_cells, { Text = string.rep(" ", options.padding.left) })
+  table.insert(left_cells, { Foreground = { Color = palette.ansi[4] } })
+
+    if options.modules.keytbl.enabled then
+        local model = window:active_key_table()
+        local model_fg = nil
+        if model == nil then
+            model = 'NONE'
+            model_fg = palette.ansi[options.modules.keytbl.none_color]
+        else
+            model_fg = palette.ansi[options.modules.keytbl.color]
+        end
+        local model_text = options.modules.keytbl.icon .. utilities._space(model, options.separator.space, 0)
+        table.insert(left_cells, { Foreground = { Color = model_fg } })
+        table.insert(left_cells, { Text = model_text })
+        table.insert(left_cells, { Text = utilities._space(options.separator.field_icon, options.separator.space, options.separator.space) })
+    end
 
   if options.modules.workspace.enabled then
     local stat = options.modules.workspace.icon .. utilities._space(window:active_workspace(), options.separator.space)
