@@ -157,14 +157,17 @@ wez.on("update-status", function(window, pane)
   end
 
   if options.modules.zoom.enabled then
-    local panes_with_info = pane:tab():panes_with_info()
-    for _, p in ipairs(panes_with_info) do
-      if p.is_active and p.is_zoomed then
-        table.insert(left_cells, { Foreground = { Color = palette.ansi[options.modules.zoom.color] } })
-        table.insert(
-          left_cells,
-          { Text = options.modules.zoom.icon .. utilities._space("zoom", options.separator.space) }
-        )
+    local tab = pane:tab()
+    if tab then
+      local panes_with_info = tab:panes_with_info()
+      for _, p in ipairs(panes_with_info) do
+        if p.is_active and p.is_zoomed then
+          table.insert(left_cells, { Foreground = { Color = palette.ansi[options.modules.zoom.color] } })
+          table.insert(
+            left_cells,
+            { Text = options.modules.zoom.icon .. utilities._space("zoom", options.separator.space) }
+          )
+        end
       end
     end
   end
