@@ -4,6 +4,43 @@ local wez = require "wezterm"
 local M = {}
 local options = {}
 
+---resolves a color option: if it is a number use it as an ansi index,
+---otherwise treat it as a color string
+---@param value string|number|nil
+---@param scheme table
+---@param fallback string
+---@return string
+local function resolve_color(value, scheme, fallback)
+  if type(value) == "number" then
+    return scheme.ansi[value] or fallback
+  end
+  return value or fallback
+end
+
+---builds tab_bar colors block from a resolved color scheme
+---@param scheme table
+---@return table
+local function build_tab_bar_colors(scheme)
+  local tabs = options.modules.tabs
+  return {
+    tab_bar = {
+      background = "transparent",
+      active_tab = {
+        bg_color = resolve_color(tabs.active_tab_bg, scheme, "transparent"),
+        fg_color = resolve_color(tabs.active_tab_fg, scheme, "white"),
+      },
+      inactive_tab = {
+        bg_color = resolve_color(tabs.inactive_tab_bg, scheme, "transparent"),
+        fg_color = resolve_color(tabs.inactive_tab_fg, scheme, "white"),
+      },
+      new_tab = {
+        bg_color = resolve_color(tabs.new_tab_bg, scheme, "transparent"),
+        fg_color = resolve_color(tabs.new_tab_fg, scheme, "white"),
+      },
+    },
+  }
+end
+
 local separator = package.config:sub(1, 1) == "\\" and "\\" or "/"
 local plugin_dir = wez.plugin.list()[1].plugin_dir:gsub(separator .. "[^" .. separator .. "]*$", "")
 
@@ -11,8 +48,8 @@ local plugin_dir = wez.plugin.list()[1].plugin_dir:gsub(separator .. "[^" .. sep
 ---@param path string
 ---@return boolean
 local function directory_exists(path)
-  local success, result = pcall(wez.read_dir, plugin_dir .. path)
-  return success and result
+  local success = pcall(wez.read_dir, plugin_dir .. path)
+  return success
 end
 
 ---returns the name of the package, used when requiring modules
@@ -55,27 +92,9 @@ M.apply_to_config = function(c, opts)
 
   local scheme = wez.color.get_builtin_schemes()[c.color_scheme]
   if scheme ~= nil then
-    if c.colors ~= nil then
-      scheme = utilities._merge(scheme, c.colors)
-    end
-    local default_colors = {
-      tab_bar = {
-        background = "transparent",
-        active_tab = {
-          bg_color = "transparent",
-          fg_color = scheme.ansi[options.modules.tabs.active_tab_fg],
-        },
-        inactive_tab = {
-          bg_color = "transparent",
-          fg_color = scheme.ansi[options.modules.tabs.inactive_tab_fg],
-        },
-        new_tab = {
-          bg_color = "transparent",
-          fg_color = scheme.ansi[options.modules.tabs.new_tab_fg],
-        },
-      },
-    }
-    c.colors = utilities._merge(default_colors, scheme)
+    local bar_colors = build_tab_bar_colors(scheme)
+    c.colors = c.colors or {}
+    c.colors.tab_bar = utilities._merge(c.colors.tab_bar or {}, bar_colors.tab_bar)
   end
 
   -- make the plugin own these settings
@@ -144,7 +163,8 @@ wez.on("update-status", function(window, pane)
     end
 
   if options.modules.workspace.enabled then
-    local stat = options.modules.workspace.icon .. utilities._space(window:active_workspace(), options.separator.space)
+    local stat = options.modules.workspace.icon
+      .. utilities._space(window:active_workspace(), options.separator.space, nil)
     local stat_fg = palette.ansi[options.modules.workspace.color]
 
     if options.modules.leader.enabled and window:leader_is_active() then
@@ -156,18 +176,15 @@ wez.on("update-status", function(window, pane)
     table.insert(left_cells, { Text = stat })
   end
 
-  if options.modules.zoom.enabled then
-    local tab = pane:tab()
-    if tab then
-      local panes_with_info = tab:panes_with_info()
-      for _, p in ipairs(panes_with_info) do
-        if p.is_active and p.is_zoomed then
-          table.insert(left_cells, { Foreground = { Color = palette.ansi[options.modules.zoom.color] } })
-          table.insert(
-            left_cells,
-            { Text = options.modules.zoom.icon .. utilities._space("zoom", options.separator.space) }
-          )
-        end
+  if options.modules.zoom.enabled and pane:tab() then
+    local panes_with_info = pane:tab():panes_with_info()
+    for _, p in ipairs(panes_with_info) do
+      if p.is_active and p.is_zoomed then
+        table.insert(left_cells, { Foreground = { Color = palette.ansi[options.modules.zoom.color] } })
+        table.insert(
+          left_cells,
+          { Text = options.modules.zoom.icon .. utilities._space("zoom", options.separator.space) }
+        )
       end
     end
   end
@@ -178,10 +195,9 @@ wez.on("update-status", function(window, pane)
       goto set_left_status
     end
     table.insert(left_cells, { Foreground = { Color = palette.ansi[options.modules.pane.color] } })
-    table.insert(
-      left_cells,
-      { Text = options.modules.pane.icon .. utilities._space(utilities._basename(process), options.separator.space) }
-    )
+    table.insert(left_cells, {
+      Text = options.modules.pane.icon .. utilities._space(utilities._basename(process) or "", options.separator.space),
+    })
   end
 
   ::set_left_status::
@@ -220,7 +236,26 @@ wez.on("update-status", function(window, pane)
     {
       name = "cwd",
       func = function()
+        if options.modules.ssh.enabled then
+          local process = pane:get_foreground_process_name()
+          if process and (utilities._basename(process) or ""):match "ssh$" then
+            return ""
+          end
+        end
         return paths.get_cwd(pane, true)
+      end,
+    },
+    {
+      name = "ssh",
+      func = function()
+        local process = pane:get_foreground_process_name()
+        if not process then
+          return ""
+        end
+        if (utilities._basename(process) or ""):match "ssh$" then
+          return "ssh"
+        end
+        return ""
       end,
     },
   }
@@ -249,6 +284,42 @@ wez.on("update-status", function(window, pane)
   table.insert(right_cells, { Text = string.rep(" ", options.padding.right) })
 
   window:set_right_status(wez.format(right_cells))
+end)
+
+wez.on("window-config-reloaded", function(window, _)
+  local present, conf = pcall(window.effective_config, window)
+  if not present then
+    return
+  end
+
+  local scheme = wez.color.get_builtin_schemes()[conf.color_scheme]
+  if not scheme then
+    return
+  end
+
+  local new_tab_bar = build_tab_bar_colors(scheme)
+  local overrides = window:get_config_overrides() or {}
+  local current = overrides.colors and overrides.colors.tab_bar
+
+  if
+    current
+    and current.active_tab
+    and current.active_tab.fg_color == new_tab_bar.tab_bar.active_tab.fg_color
+    and current.inactive_tab
+    and current.inactive_tab.fg_color == new_tab_bar.tab_bar.inactive_tab.fg_color
+    and current.new_tab
+    and current.new_tab.fg_color == new_tab_bar.tab_bar.new_tab.fg_color
+  then
+    return
+  end
+
+  -- Preserve full resolved palette (cursor_bg, split, selection_bg, etc.) and only
+  -- update tab_bar. Setting overrides.colors = { tab_bar = ... } alone would replace
+  -- the entire palette and drop user overrides.
+  local full_colors = utilities._merge({}, conf.resolved_palette or {})
+  full_colors.tab_bar = new_tab_bar.tab_bar
+  overrides.colors = full_colors
+  window:set_config_overrides(overrides)
 end)
 
 return M
