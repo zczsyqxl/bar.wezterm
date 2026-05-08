@@ -106,7 +106,7 @@ M.options = {
     pane = {
       enabled = true,
       icon = wez.nerdfonts.cod_multiple_windows,
-      color = 7,
+      color = 3,
     },
     username = {
       enabled = true,
@@ -120,7 +120,7 @@ M.options = {
     },
     clock = {
       enabled = true,
-      icon = wez.nerdfonts.md_calendar_clock,
+      icon = wez.nerdfonts.fa_clock,
       format = "%H:%M",
       color = 5,
     },

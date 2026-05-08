@@ -127,7 +127,8 @@ wez.on("format-tab-title", function(tab, _, _, conf, _, _)
   return {
     { Background = { Color = bg } },
     { Foreground = { Color = fg } },
-    { Text = utilities._space(title, options.padding.tabs.left, options.padding.tabs.right) },
+    { Text = utilities._space(title, options.padding.tabs.left, 0)},
+    { Text = utilities._space(wez.nerdfonts.fa_angle_right, options.separator.space, 1)},
   }
 end)
 
@@ -164,7 +165,7 @@ wez.on("update-status", function(window, pane)
 
   if options.modules.workspace.enabled then
     local stat = options.modules.workspace.icon
-      .. utilities._space(window:active_workspace(), options.separator.space, nil)
+      .. utilities._space(window:active_workspace(), options.separator.space, 0)
     local stat_fg = palette.ansi[options.modules.workspace.color]
 
     if options.modules.leader.enabled and window:leader_is_active() then
@@ -174,6 +175,7 @@ wez.on("update-status", function(window, pane)
 
     table.insert(left_cells, { Foreground = { Color = stat_fg } })
     table.insert(left_cells, { Text = stat })
+    table.insert(left_cells, { Text = utilities._space(options.separator.field_icon, options.separator.space, nil) })
   end
 
   if options.modules.zoom.enabled and pane:tab() then
@@ -183,7 +185,11 @@ wez.on("update-status", function(window, pane)
         table.insert(left_cells, { Foreground = { Color = palette.ansi[options.modules.zoom.color] } })
         table.insert(
           left_cells,
-          { Text = options.modules.zoom.icon .. utilities._space("zoom", options.separator.space) }
+          { Text = options.modules.zoom.icon .. utilities._space("zoom", options.separator.space, 0) }
+        )
+        table.insert(
+          left_cells,
+          { Text = utilities._space(options.separator.field_icon, options.separator.space, nil) }
         )
       end
     end
@@ -196,8 +202,12 @@ wez.on("update-status", function(window, pane)
     end
     table.insert(left_cells, { Foreground = { Color = palette.ansi[options.modules.pane.color] } })
     table.insert(left_cells, {
-      Text = options.modules.pane.icon .. utilities._space(utilities._basename(process) or "", options.separator.space),
+      Text = options.modules.pane.icon .. utilities._space(utilities._basename(process) or "", options.separator.space, 0),
     })
+    table.insert(
+      left_cells,
+      { Text = utilities._space(options.separator.field_icon, options.separator.space, nil) }
+    )
   end
 
   ::set_left_status::
@@ -228,12 +238,6 @@ wez.on("update-status", function(window, pane)
       end,
     },
     {
-      name = "clock",
-      func = function()
-        return wez.time.now():format(options.modules.clock.format)
-      end,
-    },
-    {
       name = "cwd",
       func = function()
         if options.modules.ssh.enabled then
@@ -256,6 +260,12 @@ wez.on("update-status", function(window, pane)
           return "ssh"
         end
         return ""
+        end,
+    },
+    {
+      name = "clock",
+      func = function()
+        return wez.time.now():format(options.modules.clock.format)
       end,
     },
   }
