@@ -4,23 +4,23 @@ local wez = require "wezterm"
 local M = {}
 local options = {}
 
----resolves a color option: if it is a number use it as an ansi index,
----otherwise treat it as a color string
+---resolves a color option: if it is a number use it as an ansi index into
+---the resolved palette, otherwise treat it as a color string
 ---@param value string|number|nil
----@param scheme table
+---@param palette table
 ---@param fallback string
 ---@return string
-local function resolve_color(value, scheme, fallback)
+local function resolve_color(value, palette, fallback)
   if type(value) == "number" then
-    return scheme.ansi[value] or fallback
+    return palette.ansi[value] or fallback
   end
   return value or fallback
 end
 
----builds tab_bar colors block from a resolved color scheme
----@param scheme table
+---builds tab_bar colors block from a resolved palette
+---@param palette table
 ---@return table
-local function build_tab_bar_colors(scheme)
+local function build_tab_bar_colors(palette)
   local tabs = options.modules.tabs
   return {
     tab_bar = {
@@ -90,12 +90,10 @@ M.apply_to_config = function(c, opts)
   -- combine user config with defaults
   options = config.extend_options(config.options, opts)
 
-  local scheme = wez.color.get_builtin_schemes()[c.color_scheme]
-  if scheme ~= nil then
-    local bar_colors = build_tab_bar_colors(scheme)
-    c.colors = c.colors or {}
-    c.colors.tab_bar = utilities._merge(c.colors.tab_bar or {}, bar_colors.tab_bar)
-  end
+  -- keep the bar itself transparent; tab colors are resolved live from the
+  -- resolved palette in the event handlers below
+  c.colors = c.colors or {}
+  c.colors.tab_bar = utilities._merge(c.colors.tab_bar or {}, { background = "transparent" })
 
   -- make the plugin own these settings
   c.tab_bar_at_bottom = options.position == "bottom"
@@ -117,11 +115,12 @@ wez.on("format-tab-title", function(tab, _, _, conf, _, _)
     title = wez.truncate_right(title, width) .. "…"
   end
 
-  local fg = palette.tab_bar.inactive_tab.fg_color
-  local bg = palette.tab_bar.inactive_tab.bg_color
+  local tabs_opts = options.modules.tabs
+  local fg = resolve_color(tabs_opts.inactive_tab_fg, palette, "white")
+  local bg = resolve_color(tabs_opts.inactive_tab_bg, palette, "transparent")
   if tab.is_active then
-    fg = palette.tab_bar.active_tab.fg_color
-    bg = palette.tab_bar.active_tab.bg_color
+    fg = resolve_color(tabs_opts.active_tab_fg, palette, "white")
+    bg = resolve_color(tabs_opts.active_tab_bg, palette, "transparent")
   end
 
   return {
@@ -302,12 +301,12 @@ wez.on("window-config-reloaded", function(window, _)
     return
   end
 
-  local scheme = wez.color.get_builtin_schemes()[conf.color_scheme]
-  if not scheme then
+  local palette = conf.resolved_palette
+  if not palette then
     return
   end
 
-  local new_tab_bar = build_tab_bar_colors(scheme)
+  local new_tab_bar = build_tab_bar_colors(palette)
   local overrides = window:get_config_overrides() or {}
   local current = overrides.colors and overrides.colors.tab_bar
 
@@ -315,10 +314,13 @@ wez.on("window-config-reloaded", function(window, _)
     current
     and current.active_tab
     and current.active_tab.fg_color == new_tab_bar.tab_bar.active_tab.fg_color
+    and current.active_tab.bg_color == new_tab_bar.tab_bar.active_tab.bg_color
     and current.inactive_tab
     and current.inactive_tab.fg_color == new_tab_bar.tab_bar.inactive_tab.fg_color
+    and current.inactive_tab.bg_color == new_tab_bar.tab_bar.inactive_tab.bg_color
     and current.new_tab
     and current.new_tab.fg_color == new_tab_bar.tab_bar.new_tab.fg_color
+    and current.new_tab.bg_color == new_tab_bar.tab_bar.new_tab.bg_color
   then
     return
   end
@@ -326,7 +328,7 @@ wez.on("window-config-reloaded", function(window, _)
   -- Preserve full resolved palette (cursor_bg, split, selection_bg, etc.) and only
   -- update tab_bar. Setting overrides.colors = { tab_bar = ... } alone would replace
   -- the entire palette and drop user overrides.
-  local full_colors = utilities._merge({}, conf.resolved_palette or {})
+  local full_colors = utilities._merge({}, palette)
   full_colors.tab_bar = new_tab_bar.tab_bar
   overrides.colors = full_colors
   window:set_config_overrides(overrides)

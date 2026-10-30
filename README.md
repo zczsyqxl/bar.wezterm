@@ -40,7 +40,7 @@ In order for the spotify integration to work you need to have [spotify-tui](http
 
 ## 🚀 Installation
 
-This is a wezterm [plugin](https://github.com/wez/wezterm/commit/e4ae8a844d8feaa43e1de34c5cc8b4f07ce525dd). It can be installed by importing the repo and calling the apply_to_config-function. It is important that the `apply_to_config`-function is called after `color_scheme` has been set.
+This is a wezterm [plugin](https://github.com/wez/wezterm/commit/e4ae8a844d8feaa43e1de34c5cc8b4f07ce525dd). It can be installed by importing the repo and calling the apply_to_config-function. Tab colors are resolved live from wezterm's resolved palette, so any `color_scheme` works — built-in or a custom one defined in `config.color_schemes` — and `config.colors` overrides are respected.
 
 ```lua
 local bar = wezterm.plugin.require("https://github.com/adriankarlen/bar.wezterm")
@@ -163,7 +163,9 @@ local config = {
 
 Every ansi color used is configurable, to change a color, pass in the desired
 ansi code to use for a specific setting. You can use either an ansi color index
-(number) or a hex color string (e.g., `"#c6a0f6"`).
+(number) or a hex color string (e.g., `"#c6a0f6"`). Numbers are resolved
+against the ansi section of wezterm's resolved palette at draw time, so
+`config.colors` overrides and custom color schemes are picked up automatically.
 
 Tab background colors can be configured via the `modules.tabs` options:
 
