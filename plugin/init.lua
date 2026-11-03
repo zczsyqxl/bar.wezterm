@@ -26,16 +26,16 @@ local function build_tab_bar_colors(palette)
     tab_bar = {
       background = "transparent",
       active_tab = {
-        bg_color = resolve_color(tabs.active_tab_bg, scheme, "transparent"),
-        fg_color = resolve_color(tabs.active_tab_fg, scheme, "white"),
+        bg_color = resolve_color(tabs.active_tab_bg, palette, "transparent"),
+        fg_color = resolve_color(tabs.active_tab_fg, palette, "white"),
       },
       inactive_tab = {
-        bg_color = resolve_color(tabs.inactive_tab_bg, scheme, "transparent"),
-        fg_color = resolve_color(tabs.inactive_tab_fg, scheme, "white"),
+        bg_color = resolve_color(tabs.inactive_tab_bg, palette, "transparent"),
+        fg_color = resolve_color(tabs.inactive_tab_fg, palette, "white"),
       },
       new_tab = {
-        bg_color = resolve_color(tabs.new_tab_bg, scheme, "transparent"),
-        fg_color = resolve_color(tabs.new_tab_fg, scheme, "white"),
+        bg_color = resolve_color(tabs.new_tab_bg, palette, "transparent"),
+        fg_color = resolve_color(tabs.new_tab_fg, palette, "white"),
       },
     },
   }
